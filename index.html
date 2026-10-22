@@ -123,6 +123,7 @@
 
     window.onload = () => {
       updateUserBadge();
+      renderCalendar(); 
       if (!currentUser) openNameModal();
       fetchData();
       if (supabase) subscribeRealtime();
