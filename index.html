@@ -21,13 +21,16 @@
 </head>
 <body class="p-3 sm:p-6 min-h-screen flex flex-col items-center">
 
+  <!-- 메인 캘린더 컨테이너 -->
   <div class="w-full max-w-md bg-[#FAF9F5] p-4 sm:p-5 rounded-sm shadow-md border retro-border">
     
+    <!-- 상단 헤더 & 접속자 표시 -->
     <div class="flex justify-between items-center text-xs pb-2 border-b retro-border font-bold">
       <span class="tracking-wider text-[#C83E34]">〈 되는 날 〉</span>
       <div id="userBadge" class="cursor-pointer text-[#2B448C] underline" onclick="openNameModal()">이름 등록하기</div>
     </div>
 
+    <!-- 월 네비게이션 (2026.10 ~ 2027.12) -->
     <div class="flex items-center justify-between py-4">
       <button id="prevBtn" onclick="changeMonth(-1)" class="text-2xl font-black px-3 text-[#2B448C] disabled:opacity-20 cursor-pointer">‹</button>
       <div class="text-center">
@@ -37,19 +40,32 @@
       <button id="nextBtn" onclick="changeMonth(1)" class="text-2xl font-black px-3 text-[#2B448C] disabled:opacity-20 cursor-pointer">›</button>
     </div>
 
+    <!-- 요일 헤더 -->
     <div class="grid grid-cols-7 border-y retro-border text-center font-bold text-xs py-1.5">
       <span class="text-[#C83E34]">S</span>
       <span class="text-[#2B448C]">M</span>
       <span class="text-[#2B448C]">T</span>
-      <span class="text-[#2B448C]">F</span>
+      <span class="text-[#2B448C]">W</span>
       <span class="text-[#2B448C]">T</span>
       <span class="text-[#2B448C]">F</span>
       <span class="text-[#2B448C]">S</span>
     </div>
 
+    <!-- 날짜 그리드 -->
     <div id="calendarGrid" class="grid grid-cols-7 border-l border-t retro-border bg-white/40"></div>
 
-    <!-- 2) 첫 접속 온보딩 가이드 모달 (body 닫히기 전 적당한 곳에 추가) -->
+    <!-- 하단 가이드 범례 (복구 완료 & 꾹 누르기로 수정됨) -->
+    <div class="mt-4 pt-3 border-t retro-border flex justify-between items-center text-[11px] text-[#2B448C]/80 font-medium">
+      <div class="flex items-center gap-1.5">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#E06D6D]"></span> 안됨
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#E5A84B] ml-1"></span> 애매
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#5BAE85] ml-1"></span> 선호
+      </div>
+      <span class="text-[10px] text-stone-400">칸 터치: 상태변경 | 꾹 누르기: 상세/메모</span>
+    </div>
+  </div> <!-- 메인 캘린더 컨테이너 닫기 -->
+
+  <!-- 첫 접속 온보딩 가이드 모달 (컨테이너 바깥으로 분리) -->
   <div id="guideModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 hidden">
     <div class="bg-[#FAF9F5] p-5 border-2 border-[#2B448C] w-full max-w-xs shadow-2xl rounded-sm">
       <div class="flex justify-between items-center mb-3 border-b retro-border pb-2">
@@ -58,7 +74,6 @@
       </div>
       
       <div class="space-y-3 text-xs text-[#2B448C] mb-5 leading-relaxed">
-        <!-- 터치 순서 안내 -->
         <div class="bg-white/80 p-2.5 border retro-border rounded-sm">
           <p class="font-bold mb-1.5 text-stone-700">👆 날짜 칸 1번 톡 터치할 때마다 순환</p>
           <div class="flex items-center justify-between text-[11px] font-semibold">
@@ -72,7 +87,6 @@
           </div>
         </div>
 
-        <!-- 꾹 누르기 안내 -->
         <div class="bg-white/80 p-2.5 border retro-border rounded-sm">
           <p class="font-bold mb-1 text-stone-700">⏱️ 날짜 칸을 꾹~ 누르면?</p>
           <p class="text-[11px] text-stone-600">누가 된다고/안 된다고 했는지 확인하고, <strong class="text-[#2B448C]">한 줄 메모(댓글)</strong>를 남길 수 있어요.</p>
@@ -84,8 +98,8 @@
       </button>
     </div>
   </div>
-  </div>
 
+  <!-- 이름 입력 모달 -->
   <div id="nameModal" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 hidden">
     <div class="bg-[#FAF9F5] p-5 border retro-border w-full max-w-xs shadow-lg">
       <h3 class="font-bold text-sm mb-1 text-[#2B448C]">사용할 닉네임 입력</h3>
@@ -95,6 +109,7 @@
     </div>
   </div>
 
+  <!-- 날짜 상세 & 메모 바텀시트 모달 -->
   <div id="detailModal" class="fixed inset-0 bg-black/40 flex items-end justify-center z-50 hidden" onclick="closeDetailModal(event)">
     <div class="bg-[#FAF9F5] w-full max-w-md p-5 border-t-2 border-[#2B448C] rounded-t-lg shadow-xl" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center mb-3">
