@@ -128,11 +128,11 @@
       // 이전 달 빈칸
       for (var i = 0; i < firstDay; i++) {
         var emptyCell = document.createElement('div');
-        emptyCell.className = "h-20 sm:h-24 border-r border-b retro-border bg-[#F5F4EE]/60";
+        emptyCell.className = "h-20 sm:h-24 border-r border-b retro-border bg-[#F5F4EE]/60 select-none";
         grid.appendChild(emptyCell);
       }
 
-      // 날짜 칸
+      // 날짜 칸 렌더링
       for (var d = 1; d <= lastDate; d++) {
         (function(dayNum) {
           var dateStr = currentYear + '-' + String(currentMonth).padStart(2, '0') + '-' + String(dayNum).padStart(2, '0');
@@ -145,34 +145,75 @@
           var oCount = dateRes.filter(function(r) { return r.status === 'O'; }).length;
           var noteCount = notesData.filter(function(n) { return n.target_date === dateStr; }).length;
 
-          var bgClass = "bg-white";
-          if (xCount === 1 || xCount === 2) bgClass = "bg-stone-100";
-          else if (xCount >= 3) bgClass = "bg-stone-200";
-          else if (xCount === 0 && oCount > 0) bgClass = "bg-[#F0FDF4]";
+          // 배경 색상
+          var bgClass = "bg-white active:bg-stone-50";
+          if (xCount === 1 || xCount === 2) bgClass = "bg-stone-100 active:bg-stone-200";
+          else if (xCount >= 3) bgClass = "bg-stone-200 active:bg-stone-300";
+          else if (xCount === 0 && oCount > 0) bgClass = "bg-[#F0FDF4] active:bg-[#e1f7e9]";
 
-          cell.className = "h-20 sm:h-24 border-r border-b retro-border p-1 flex flex-col justify-between cursor-pointer transition-colors " + bgClass;
-          cell.onclick = function() { handleDateToggle(dateStr, myRes ? myRes.status : 'NONE'); };
+          cell.className = "h-20 sm:h-24 border-r border-b retro-border p-1 flex flex-col justify-between cursor-pointer transition-all select-none " + bgClass;
+          cell.style.webkitUserSelect = "none";
+          cell.style.webkitTouchCallout = "none";
 
+          // ★ 롱프레스(꾹 누르기 = 모달) & 단일 탭(상태 변경) 핸들러
+          var pressTimer = null;
+          var isLongPress = false;
+
+          function startPress(e) {
+            isLongPress = false;
+            pressTimer = setTimeout(function() {
+              isLongPress = true;
+              if (navigator.vibrate) navigator.vibrate(40); // 모바일 진동 손맛
+              openDetailModal(dateStr);
+            }, 450); // 450ms 유지 시 모달 오픈
+          }
+
+          function cancelPress() {
+            if (pressTimer) {
+              clearTimeout(pressTimer);
+              pressTimer = null;
+            }
+          }
+
+          function endPress(e) {
+            cancelPress();
+            if (!isLongPress) {
+              // 꾹 누른 게 아닐 때만 빠른 상태 변경 실행
+              handleDateToggle(dateStr, myRes ? myRes.status : 'NONE');
+            }
+          }
+
+          // 모바일 터치 이벤트
+          cell.ontouchstart = startPress;
+          cell.ontouchend = endPress;
+          cell.ontouchmove = cancelPress;
+
+          // 데스크톱 마우스 이벤트 대응
+          cell.onmousedown = startPress;
+          cell.onmouseup = endPress;
+          cell.onmouseleave = cancelPress;
+          cell.oncontextmenu = function(e) { e.preventDefault(); }; // 우클릭 팝업 방지
+
+          // 상단 날짜 숫자 및 메모 인디케이터
           var topRow = document.createElement('div');
-          topRow.className = "flex justify-between items-start";
+          topRow.className = "flex justify-between items-start pointer-events-none";
 
           var dateNum = document.createElement('span');
           dateNum.className = "text-xs sm:text-sm font-bold " + (dayOfWeek === 0 ? "text-[#C83E34]" : "text-[#2B448C]") + (xCount >= 3 ? " opacity-30" : "");
           dateNum.textContent = dayNum;
           topRow.appendChild(dateNum);
 
-          var noteBadge = document.createElement('button');
-          noteBadge.className = "text-[10px] text-stone-400 hover:text-[#2B448C] px-1";
-          noteBadge.innerHTML = noteCount > 0 ? '💬<span class="font-bold text-[#C83E34]">' + noteCount + '</span>' : '⋮';
-          noteBadge.onclick = function(e) {
-            e.stopPropagation();
-            openDetailModal(dateStr);
-          };
-          topRow.appendChild(noteBadge);
+          if (noteCount > 0) {
+            var noteBadge = document.createElement('span');
+            noteBadge.className = "text-[10px] text-stone-400 font-bold";
+            noteBadge.innerHTML = '💬<span class="text-[#C83E34]">' + noteCount + '</span>';
+            topRow.appendChild(noteBadge);
+          }
           cell.appendChild(topRow);
 
+          // 5x5 마이크로 도트 영역
           var microGrid = document.createElement('div');
-          microGrid.className = "grid grid-cols-5 gap-0.5 w-full mt-auto";
+          microGrid.className = "grid grid-cols-5 gap-0.5 w-full mt-auto pointer-events-none";
           dateRes.slice(0, 25).forEach(function(r) {
             var dot = document.createElement('span');
             dot.className = "w-1.5 h-1.5 rounded-full mx-auto";
