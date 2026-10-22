@@ -405,6 +405,19 @@
     renderCalendar();
     if (!currentUser) openNameModal();
     fetchData();
+
+    // 가이드 모달 닫기 (다시 안 뜨도록 저장)
+    function closeGuideModal() {
+      document.getElementById('guideModal').classList.add('hidden');
+      try { localStorage.setItem('becoming_guide_seen', 'true'); } catch(e) {}
+    }
+
+    // 초기 실행 로직에 가이드 체크 추가
+    var hasSeenGuide = false;
+    try { hasSeenGuide = localStorage.getItem('becoming_guide_seen'); } catch(e) {}
+    if (!hasSeenGuide) {
+      document.getElementById('guideModal').classList.remove('hidden');
+    }
   </script>
 </body>
 </html>
