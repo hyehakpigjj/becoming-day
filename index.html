@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>되는 날 - 약속 달력</title>
+  <!-- 구글 폰트 & Tailwind CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+KR:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: 'Space Grotesk', 'Noto Sans KR', sans-serif;
+      background-color: #F4F2EC;
+      color: #2B448C;
+      touch-action: manipulation;
+    }
+    .retro-border { border-color: rgba(43, 68, 140, 0.25); }
+  </style>
+</head>
+<body class="p-3 sm:p-6 min-h-screen flex flex-col items-center">
+
+  <!-- 메인 캘린더 컨테이너 -->
+  <div class="w-full max-w-md bg-[#FAF9F5] p-4 sm:p-5 rounded-sm shadow-md border retro-border">
+    
+    <!-- 상단 헤더 & 접속자 표시 -->
+    <div class="flex justify-between items-center text-xs pb-2 border-b retro-border font-bold">
+      <span class="tracking-wider text-[#C83E34]">〈 되는 날 〉</span>
+      <div id="userBadge" class="cursor-pointer text-[#2B448C] underline" onclick="openNameModal()">이름 등록하기</div>
+    </div>
+
+    <!-- 월 네비게이션 (2026.10 ~ 2027.12) -->
+    <div class="flex items-center justify-between py-4">
+      <button id="prevBtn" onclick="changeMonth(-1)" class="text-2xl font-black px-3 text-[#2B448C] disabled:opacity-20">‹</button>
+      <div class="text-center">
+        <span id="yearDisplay" class="text-xs font-bold tracking-widest text-[#2B448C]/70 block">2026</span>
+        <span id="monthDisplay" class="text-4xl font-black text-[#C83E34] tracking-tight">10</span>
+      </div>
+      <button id="nextBtn" onclick="changeMonth(1)" class="text-2xl font-black px-3 text-[#2B448C] disabled:opacity-20">›</button>
+    </div>
+
+    <!-- 요일 헤더 -->
+    <div class="grid grid-cols-7 border-y retro-border text-center font-bold text-xs py-1.5">
+      <span class="text-[#C83E34]">S</span>
+      <span class="text-[#2B448C]">M</span>
+      <span class="text-[#2B448C]">T</span>
+      <span class="text-[#2B448C]">W</span>
+      <span class="text-[#2B448C]">T</span>
+      <span class="text-[#2B448C]">F</span>
+      <span class="text-[#2B448C]">S</span>
+    </div>
+
+    <!-- 날짜 그리드 -->
+    <div id="calendarGrid" class="grid grid-cols-7 border-l border-t retro-border bg-white/40"></div>
+
+    <!-- 하단 가이드 범례 -->
+    <div class="mt-4 pt-3 border-t retro-border flex justify-between items-center text-[11px] text-[#2B448C]/80 font-medium">
+      <div class="flex items-center gap-1.5">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#E06D6D]"></span> 안됨
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#E5A84B] ml-1"></span> 애매
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#5BAE85] ml-1"></span> 선호
+      </div>
+      <span class="text-[10px] text-stone-400">칸 터치: 상태변경 | 💬 터치: 메모</span>
+    </div>
+  </div>
+
+  <!-- 이름 입력 모달 -->
+  <div id="nameModal" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-[#FAF9F5] p-5 border retro-border w-full max-w-xs shadow-lg">
+      <h3 class="font-bold text-sm mb-1 text-[#2B448C]">사용할 닉네임 입력</h3>
+      <p class="text-[11px] text-stone-500 mb-3">단톡방 친구들이 알아볼 수 있는 이름을 적어주세요.</p>
+      <input type="text" id="nameInput" placeholder="예: 지혜은" class="w-full border retro-border p-2 text-sm bg-white outline-none mb-3 font-medium">
+      <button onclick="saveName()" class="w-full bg-[#2B448C] text-white py-2 text-xs font-bold hover:bg-[#1f3266]">확인</button>
+    </div>
+  </div>
+
+  <!-- 날짜 상세 & 메모 바텀시트 모달 -->
+  <div id="detailModal" class="fixed inset-0 bg-black/40 flex items-end justify-center z-50 hidden" onclick="closeDetailModal(event)">
+    <div class="bg-[#FAF9F5] w-full max-w-md p-5 border-t-2 border-[#2B448C] rounded-t-lg shadow-xl" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center mb-3">
+        <h3 id="modalDateTitle" class="text-base font-black text-[#C83E34]">2026.10.22</h3>
+        <button onclick="closeDetailModal()" class="text-lg font-bold text-[#2B448C] px-2">✕</button>
+      </div>
+
+      <!-- 참여자 현황 요약 -->
+      <div class="bg-white/80 p-2.5 border retro-border text-xs mb-3 space-y-1">
+        <div><strong class="text-[#E06D6D]">안 됨(❌):</strong> <span id="listX" class="text-stone-600">-</span></div>
+        <div><strong class="text-[#E5A84B]">애 매(🔺):</strong> <span id="listTriangle" class="text-stone-600">-</span></div>
+        <div><strong class="text-[#5BAE85]">선 호(⭕):</strong> <span id="listO" class="text-stone-600">-</span></div>
+      </div>
+
+      <!-- 메모 목록 -->
+      <div class="border retro-border bg-white/50 p-2.5 h-36 overflow-y-auto text-xs mb-2 space-y-1.5" id="notesList"></div>
+
+      <!-- 메모 입력창 -->
+      <div class="flex gap-1.5">
+        <input type="text" id="noteInput" placeholder="한 줄 메모 남기기 (시간 조율 등)" class="flex-1 border retro-border p-2 text-xs bg-white outline-none">
+        <button onclick="submitNote()" class="bg-[#2B448C] text-white px-3 text-xs font-bold">등록</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 1. Supabase 연동 정보 (본인 키로 변경)
+    const SUPABASE_URL = "YOUR_SUPABASE_URL";
+    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+    const supabase = (SUPABASE_URL !== "YOUR_SUPABASE_URL") 
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
+      : null;
+
+    // 2. 상태값 및 범위 제한 (2026.10 ~ 2027.12)
+    let currentYear = 2026;
+    let currentMonth = 10; 
+    let currentUser = localStorage.getItem('becoming_user') || '';
+    let selectedDate = null;
+    let responsesData = [];
+    let notesData = [];
+
+    const NEXT_STATUS = { 'NONE': 'X', 'X': 'TRIANGLE', 'TRIANGLE': 'O', 'O': 'NONE' };
+
+    window.onload = () => {
+      updateUserBadge();
+      if (!currentUser) openNameModal();
+      fetchData();
+      if (supabase) subscribeRealtime();
+    };
+
+    function updateUserBadge() {
+      const badge = document.getElementById('userBadge');
+      badge.textContent = currentUser ? `${currentUser} 님 (변경)` : '이름 등록하기';
+    }
+
+    function openNameModal() { document.getElementById('nameModal').classList.remove('hidden'); }
+    function saveName() {
+      const val = document.getElementById('nameInput').value.trim();
+      if (!val) return;
+      currentUser = val;
+      localStorage.setItem('becoming_user', val);
+      document.getElementById('nameModal').classList.add('hidden');
+      updateUserBadge();
+      renderCalendar();
+    }
+
+    function changeMonth(delta) {
+      let y = currentYear;
+      let m = currentMonth + delta;
+      if (m > 12) { y++; m = 1; }
+      if (m < 1) { y--; m = 12; }
+
+      // 2026년 10월 ~ 2027년 12월 제한
+      if (y < 2026 || (y === 2026 && m < 10) || y > 2027) return;
+
+      currentYear = y;
+      currentMonth = m;
+      renderCalendar();
+    }
+
+    async function fetchData() {
+      if (!supabase) { renderCalendar(); return; }
+      const { data: res } = await supabase.from('responses').select('*');
+      const { data: notes } = await supabase.from('date_notes').select('*');
+      responsesData = res || [];
+      notesData = notes || [];
+      renderCalendar();
+    }
+
+    function subscribeRealtime() {
+      supabase.channel('public:calendar')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'responses' }, () => fetchData())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'date_notes' }, () => fetchData())
+        .subscribe();
+    }
+
+    function renderCalendar() {
+      document.getElementById('yearDisplay').textContent = currentYear;
+      document.getElementById('monthDisplay').textContent = currentMonth;
+
+      // 이전/다음 버튼 활성/비활성화
+      document.getElementById('prevBtn').disabled = (currentYear === 2026 && currentMonth === 10);
+      document.getElementById('nextBtn').disabled = (currentYear === 2027 && currentMonth === 12);
+
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+
+      const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
+      const lastDate = new Date(currentYear, currentMonth, 0).getDate();
+
+      // 지난달 공백 칸
+      for (let i = 0; i < firstDay; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = "h-20 sm:h-24 border-r border-b retro-border bg-[#F5F4EE]/60";
+        grid.appendChild(emptyCell);
+      }
+
+      // 날짜 칸 렌더링
+      for (let d = 1; d <= lastDate; d++) {
+        const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayOfWeek = (firstDay + d - 1) % 7;
+        const cell = document.createElement('div');
+
+        // 필터링 데이터
+        const dateRes = responsesData.filter(r => r.target_date === dateStr);
+        const myRes = dateRes.find(r => r.user_name === currentUser);
+        const xCount = dateRes.filter(r => r.status === 'X').length;
+        const oCount = dateRes.filter(r => r.status === 'O').length;
+        const noteCount = notesData.filter(n => n.target_date === dateStr).length;
+
+        // X 누적 가중치 배경색 (딤 처리)
+        let bgClass = "bg-white";
+        if (xCount === 1 || xCount === 2) bgClass = "bg-stone-100";
+        else if (xCount >= 3) bgClass = "bg-stone-200";
+        else if (xCount === 0 && oCount > 0) bgClass = "bg-[#F0FDF4]"; // 모두가 찬성하는 유력일
+
+        cell.className = `h-20 sm:h-24 border-r border-b retro-border p-1 flex flex-col justify-between cursor-pointer transition-colors ${bgClass}`;
+
+        // 1탭: 내 신호등 상태 토글
+        cell.onclick = () => handleDateToggle(dateStr, myRes ? myRes.status : 'NONE');
+
+        // 상단 날짜 숫자 & 메모 인디케이터
+        const topRow = document.createElement('div');
+        topRow.className = "flex justify-between items-start";
+        const dateNum = document.createElement('span');
+        dateNum.className = `text-xs sm:text-sm font-bold ${dayOfWeek === 0 ? 'text-[#C83E34]' : 'text-[#2B448C]'} ${xCount >= 3 ? 'opacity-30' : ''}`;
+        dateNum.textContent = d;
+        topRow.appendChild(dateNum);
+
+        // 메모 or 상세 버튼 (터치 시 바텀시트 열림)
+        const noteBadge = document.createElement('button');
+        noteBadge.className = "text-[10px] text-stone-400 hover:text-[#2B448C] px-1";
+        noteBadge.innerHTML = noteCount > 0 ? `💬<span class="font-bold text-[#C83E34]">${noteCount}</span>` : '⋮';
+        noteBadge.onclick = (e) => {
+          e.stopPropagation();
+          openDetailModal(dateStr);
+        };
+        topRow.appendChild(noteBadge);
+        cell.appendChild(topRow);
+
+        // 5x5 마이크로 도트 영역 (최대 25명)
+        const microGrid = document.createElement('div');
+        microGrid.className = "grid grid-cols-5 gap-0.5 w-full mt-auto";
+        dateRes.slice(0, 25).forEach(r => {
+          const dot = document.createElement('span');
+          dot.className = "w-1.5 h-1.5 rounded-full mx-auto";
+          if (r.status === 'X') dot.className += " bg-[#E06D6D]";
+          else if (r.status === 'TRIANGLE') dot.className += " bg-[#E5A84B]";
+          else if (r.status === 'O') dot.className += " bg-[#5BAE85]";
+          microGrid.appendChild(dot);
+        });
+        cell.appendChild(microGrid);
+
+        grid.appendChild(cell);
+      }
+    }
+
+    async function handleDateToggle(dateStr, currentStatus) {
+      if (!currentUser) { openNameModal(); return; }
+      const next = NEXT_STATUS[currentStatus];
+
+      if (!supabase) {
+        // 로컬 테스트용
+        responsesData = responsesData.filter(r => !(r.user_name === currentUser && r.target_date === dateStr));
+        if (next !== 'NONE') responsesData.push({ user_name: currentUser, target_date: dateStr, status: next });
+        renderCalendar();
+        return;
+      }
+
+      if (next === 'NONE') {
+        await supabase.from('responses').delete().match({ user_name: currentUser, target_date: dateStr });
+      } else {
+        await supabase.from('responses').upsert({
+          user_name: currentUser,
+          target_date: dateStr,
+          status: next,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_name, target_date' });
+      }
+      fetchData();
+    }
+
+    function openDetailModal(dateStr) {
+      selectedDate = dateStr;
+      document.getElementById('modalDateTitle').textContent = dateStr;
+
+      const dateRes = responsesData.filter(r => r.target_date === dateStr);
+      document.getElementById('listX').textContent = dateRes.filter(r => r.status === 'X').map(r => r.user_name).join(', ') || '없음';
+      document.getElementById('listTriangle').textContent = dateRes.filter(r => r.status === 'TRIANGLE').map(r => r.user_name).join(', ') || '없음';
+      document.getElementById('listO').textContent = dateRes.filter(r => r.status === 'O').map(r => r.user_name).join(', ') || '없음';
+
+      renderNotes();
+      document.getElementById('detailModal').classList.remove('hidden');
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detailModal').classList.add('hidden');
+    }
+
+    function renderNotes() {
+      const list = document.getElementById('notesList');
+      list.innerHTML = '';
+      const notes = notesData.filter(n => n.target_date === selectedDate);
+      if (notes.length === 0) {
+        list.innerHTML = '<p class="text-stone-400 text-center py-4 text-[11px]">등록된 메모가 없습니다.</p>';
+        return;
+      }
+      notes.forEach(n => {
+        const item = document.createElement('div');
+        item.className = "bg-white p-1.5 border retro-border rounded-sm";
+        const time = new Date(n.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        item.innerHTML = `<span class="font-bold text-[#2B448C]">${n.user_name}</span> <span class="text-[9px] text-stone-400">(${time})</span>: <span>${n.content}</span>`;
+        list.appendChild(item);
+      });
+    }
+
+    async function submitNote() {
+      const input = document.getElementById('noteInput');
+      const content = input.value.trim();
+      if (!content || !selectedDate || !currentUser) return;
+
+      if (supabase) {
+        await supabase.from('date_notes').insert({
+          target_date: selectedDate,
+          user_name: currentUser,
+          content: content
+        });
+      } else {
+        notesData.push({ target_date: selectedDate, user_name: currentUser, content: content, created_at: new Date().toISOString() });
+      }
+      input.value = '';
+      fetchData();
+      renderNotes();
+    }
+  </script>
+</body>
+</html>
